@@ -36,7 +36,7 @@ if os.path.isfile(os.path.join(os.environ.get('KLAUS_BASE_PATH', ''), 'projects.
     app.repos={}
     f=open(os.path.join(os.environ.get('KLAUS_BASE_PATH', ''), 'projects.list'), 'r')
     for line in f.readlines():
-        app.repos[line.strip().rstrip(os.sep)] = os.environ.get('KLAUS_BASE_PATH', '') + os.environ.get('KLAUSE_BASE_PATH_SUFFIX', '') + line.strip()
+        app.repos[line.strip().rstrip(os.sep)] = os.environ.get('KLAUS_BASE_PATH', '') + os.environ.get('KLAUS_BASE_PATH_SUFFIX', '') + line.strip()
     f.close()
 else:
     app.repos = {repo.rstrip(os.sep): (os.environ.get('KLAUS_BASE_PATH', '') + repo) for repo in os.environ.get('KLAUS_REPOS', '').split()}

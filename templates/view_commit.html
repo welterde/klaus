@@ -1,4 +1,4 @@
-{% set title = 'Commit %s to %s' % (commit.id, repo.name) %}
+{% set title = 'Commit %s to %s' % (g.commit.id, g.repo.name) %}
 {% extends 'base.html' %}
 
 {% block content %}
@@ -6,16 +6,16 @@
 <div class=full-commit>
   <div class=commit>
     <span class=line1>
-      <span>{{ commit.message|u }}</span>
+      <span>{{ g.commit.message|u }}</span>
     </span>
     <span class=line2>
-      <span>{{ commit.author|u|shorten_author }}</span>
-      <span>{{ commit.commit_time|timesince }} ago</span>
+      <span>{{ g.commit.author|u|shorten_author }}</span>
+      <span>{{ g.commit.commit_time|timesince }} ago</span>
     </span>
     <span class=clearfloat></span>
   </div>
   <div class=diff>
-    {%- for file in repo.commit_diff(commit) %}
+    {%- for file in g.repo.commit_diff(g.commit) %}
       <div class=filename>
         {# TODO dulwich doesn't do rename recognition
         {% if file.old_filename != file.new_filename %}
@@ -24,7 +24,7 @@
           {% if file.new_filename == '/dev/null' %}
             <del>{{ file.old_filename|u }}</del>
           {% else %}
-            <a href="{{ build_url('view_blob', path=file.new_filename) }}">
+            <a href="{{ url_for('view_blob', path=file.new_filename) }}">
               {{ file.new_filename|u }}
             </a>
           {% endif %}

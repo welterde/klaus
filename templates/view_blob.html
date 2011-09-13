@@ -5,15 +5,15 @@
 
 <div class=blobview>
   <h2>
-    {{ filename|u }}
+    {{ g.filename|u }}
     <span>
-      @<a href="{{ build_url('view_commit') }}">{{ commit_id|shorten_id }}</a>
+      @<a href="{{ url_for('view_commit') }}">{{ g.commit_id|shorten_id }}</a>
       (<a href="{{ raw_url }}">raw</a>
-      &middot; <a href="{{ build_url('history', path=path) }}">history</a>)
+      &middot; <a href="{{ url_for('view_history', page=0, path=path) }}">history</a>)
     </span>
   </h2>
   {% if blob.chunked|is_binary %}
-    {% if filename|is_image %}
+    {% if g.filename|is_image %}
       <a href="{{ raw_url }}"><img src="{{ raw_url }}"></a>
     {% else %}
       <div class=binary-warning>(Binary data not shown)</div>
@@ -23,7 +23,7 @@
       <div class=too-large-warning>(Large file not shown)</div>
     {% else %}
       {% autoescape off %}
-        {{ blob.data|u|pygmentize(filename=filename) }}
+        {{ blob.data|u|pygmentize(filename=g.filename) }}
       {% endautoescape %}
     {% endif %}
   {% endif %}

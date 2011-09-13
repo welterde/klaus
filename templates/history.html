@@ -3,7 +3,7 @@
 
 {% include 'tree.inc.html' %}
 
-{% set history = repo.history(branch, path, history_length+1, skip) %}
+{% set history = g.repo.history(g.branch, g.path, history_length+1, skip) %}
 {% set has_more_commits = history|length == history_length+1 %}
 
 {% macro pagination() %}
@@ -41,7 +41,7 @@
         Commit History
       {% endif %}
       <span>
-        @<a href="{{ build_url(commit_id=branch, path='') }}">{{ branch }}</a>
+        @<a href="{{ url_for('view_history', commit_id=g.branch, page=0, path='') }}">{{ g.branch }}</a>
       </span>
     </h2>
 
@@ -51,7 +51,7 @@
     {% for commit in history %}
     {% if not loop.last or history|length < history_length %}
       <li>
-        <a class=commit href="{{ build_url('view_commit', commit_id=commit.id) }}">
+        <a class=commit href="{{ url_for('view_commit', commit_id=commit.id) }}">
           <span class=line1>
             <span>{{ commit.message|u|shorten_message }}</span>
           </span>

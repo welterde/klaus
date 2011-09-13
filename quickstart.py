@@ -4,19 +4,6 @@ import sys, os
 import argparse
 
 try:
-    import nano
-except ImportError:
-    sys.path.append(os.path.join(os.path.dirname(__file__), 'nano'))
-    try:
-        import nano
-    except ImportError:
-        raise ImportError(
-            "Could not find a copy of nano (https://github.com/jonashaag/nano). "
-            "Use 'git submodule update --init' to initialize the nano submodule "
-            "or copy the 'nano.py' into the klaus root directory by hand."
-        )
-
-try:
     from bjoern import run
 except ImportError:
     from wsgiref.simple_server import make_server

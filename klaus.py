@@ -30,9 +30,49 @@ except IOError:
     KLAUS_VERSION = ''
 
 app = Flask(__name__, template_folder=TEMPLATE_DIR)
+app.debug = True
 app.jinja_env.globals['KLAUS_VERSION'] = KLAUS_VERSION
 
-app.repos = {repo.rstrip(os.sep).split(os.sep)[-1]: repo for repo in sys.argv[1:] or os.environ.get('KLAUS_REPOS', '').split()}
+app.repos = {repo.rstrip(os.sep): (os.environ.get('KLAUS_BASE_PATH', '') + repo) for repo in os.environ.get('KLAUS_REPOS', '').split()}
+
+# now load some stuff..
+@app.url_value_preprocessor
+def pull_stuff(endpoint, values):
+    if not values:
+        return
+    g.repo = values.pop('repo', None)
+    # load repo if there is an repo
+    if g.repo:
+        g.repo = get_repo(g.repo)
+        g.commit_id = values.pop('commit_id', None)
+        g.commit, isbranch = get_commit(g.repo, g.commit_id)
+        # TODO: find correct branch here..
+        if isbranch:
+            g.branch=g.commit_id
+        else:
+            g.branch='master'
+        
+        # load path and subpaths if there is an path
+        g.path = values.get('path', '')
+        g.subpaths = subpaths(g.path)
+        g.directory, g.filename = os.path.split(g.path.strip('/'))
+    
+
+# adds repo to url_for if it is there
+@app.url_defaults
+def add_repo(endpoint, values):
+    if 'repo' in values or not g.repo:
+        return
+    if app.url_map.is_endpoint_expecting(endpoint, 'repo'):
+        values['repo'] = g.repo.name
+
+@app.url_defaults
+def add_commit_id(endpoint, values):
+    if 'commit_id' in values or not g.commit_id:
+        return
+    if app.url_map.is_endpoint_expecting(endpoint, 'commit_id'):
+        values['commit_id'] = g.commit_id
+
 
 def pygmentize(code, filename=None, language=None):
     if language:
@@ -153,11 +193,11 @@ def view_repo_list():
         refs = [repo[ref] for ref in repo.get_refs()]
         refs.sort(key=lambda obj:getattr(obj, 'commit_time', None), reverse=True)
         repos.append((name, refs[0].commit_time))
-        if 'by-last-update' in self.GET:
-            repos.sort(key=lambda x: x[1], reverse=True)
-        else:
-            repos.sort(key=lambda x: x[0])
-        return render_template("repo_list.html", repos=repos)
+    if 'by-last-update' in request.args:
+        repos.sort(key=lambda x: x[1], reverse=True)
+    else:
+        repos.sort(key=lambda x: x[0])
+    return render_template("repo_list.html", repos=repos)
 
 #class BaseRepoView(BaseView):
 #    def __init__(self, env, repo, commit_id, path=None):
@@ -190,46 +230,35 @@ def get_commit(repo, id):
 #        }
 #        return app.build_url(view, **dict(default_kwargs, **kwargs))
 
+def listdir(repo, commit, path):
+    dirs, files = [], []
+    tree, root = get_tree(repo, commit, path)
+    for entry in tree.iteritems():
+        name, entry = entry.path, entry.in_path(root)
+        if entry.mode & stat.S_IFDIR:
+            dirs.append((name.lower(), name, entry.path))
+        else:
+            files.append((name.lower(), name, entry.path))
+    files.sort()
+    dirs.sort()
+    if root:
+        dirs.insert(0, (None, '..', os.path.split(root)[0]))
+    return {'dirs' : dirs, 'files' : files}
 
-class TreeViewMixin(object):
-    def view(self):
-        self['tree'] = self.listdir()
+def get_tree(repo, commit, path):
+    root = path
+    tree = repo.get_tree(commit, root)
+    if isinstance(tree, Blob):
+        root = os.path.split(root)[0]
+        tree = repo.get_tree(commit, root)
+    return tree, root
 
-    def listdir(self):
-        dirs, files = [], []
-        tree, root = self.get_tree()
-        for entry in tree.iteritems():
-            name, entry = entry.path, entry.in_path(root)
-            if entry.mode & stat.S_IFDIR:
-                dirs.append((name.lower(), name, entry.path))
-            else:
-                files.append((name.lower(), name, entry.path))
-        files.sort()
-        dirs.sort()
-        if root:
-            dirs.insert(0, (None, '..', os.path.split(root)[0]))
-        return {'dirs' : dirs, 'files' : files}
-
-    def get_tree(self):
-        root = self['path']
-        tree = self['repo'].get_tree(self['commit'], root)
-        if isinstance(tree, Blob):
-            root = os.path.split(root)[0]
-            tree = self['repo'].get_tree(self['commit'], root)
-        return tree, root
-
-@route('/:repo:/tree/:commit_id:/(?P<path>.*)', 'history')
-@app.route('/<path:repo>/tree/<string:commit_id>/<path:path>')
+#@route('/:repo:/tree/:commit_id:/(?P<path>.*)', 'history')
 @app.route('/<path:repo>/tree/<string:commit_id>/')
-def view_history(repo, commit_id, path=None):
-    repo=get_repo(repo)
-    commit,isbranch=get_commit(repo, commit_id)
-    branch=commit_id if isbranch else 'master'
-    super(TreeView, self).view()
-    try:
-        page = int(request.args.get('page'))
-    except (TypeError, ValueError):
-        page = 0
+@app.route('/<path:repo>/tree/<string:commit_id>/<int:page>/')
+@app.route('/<path:repo>/tree/<string:commit_id>/<int:page>/<path:path>')
+def view_history(page=0, path=None):
+    tree=listdir(g.repo, g.commit, g.path)
     
     if page:
         history_length = 30
@@ -241,57 +270,60 @@ def view_history(repo, commit_id, path=None):
     else:
         history_length = 10
         skip = 0
-    return render_template('history.html', repo=repo, commit=commit, branch=branch, page=page, history_length=history_length, skip=skip)
+    return render_template('history.html', repo=g.repo, commit=g.commit, commit_id=g.commit_id, branch=g.branch, page=page, history_length=history_length, skip=skip, tree=tree)
 
-class BaseBlobView(BaseRepoView):
-    def view(self):
-        self['blob'] = self['repo'].get_tree(self['commit'], self['path'])
-        self['directory'], self['filename'] = os.path.split(self['path'].strip('/'))
+def get_blob(repo, commit, path):
+    return repo.get_tree(commit, path)
 
-@route('/:repo:/blob/:commit_id:/(?P<path>.*)', 'view_blob')
+#class BaseBlobView(BaseRepoView):
+#    def view(self):
+#        self['blob'] = self['repo'].get_tree(self['commit'], self['path'])
+#        self['directory'], self['filename'] = os.path.split(self['path'].strip('/'))
+
+#@route('/:repo:/blob/:commit_id:/(?P<path>.*)', 'view_blob')
 @app.route('/<path:repo>/blob/<string:commit_id>/<path:path>')
-class BlobView(BaseBlobView, TreeViewMixin):
-    def view(self):
-        BaseBlobView.view(self)
-        TreeViewMixin.view(self)
-        self['raw_url'] = self.build_url('raw_blob', path=self['path'])
-        self['too_large'] = sum(map(len, self['blob'].chunked)) > 100*1024
+def view_blob(path):
+    tree=listdir(g.repo, g.commit, g.path)
+    blob=get_blob(g.repo, g.commit, g.path)
+    raw_url = url_for('view_raw_blob', path=g.path)
+    too_large = sum(map(len, blob.chunked)) > 100*1024
+    return render_template('view_blob.html', blob=blob, raw_url=raw_url, too_large=too_large, tree=tree)
 
 
-@route('/:repo:/raw/:commit_id:/(?P<path>.*)', 'raw_blob')
+#@route('/:repo:/raw/:commit_id:/(?P<path>.*)', 'raw_blob')
 @app.route('/<path:repo>/raw/<string:commit_id>/<path:path>')
-class RawBlob(BaseBlobView):
-    def view(self):
-        super(RawBlob, self).view()
-        mime, encoding = self.get_mimetype_and_encoding()
-        headers = {'Content-Type': mime}
-        if encoding:
-            headers['Content-Encoding'] = encoding
+#class RawBlob(object):
+def view_raw_blob(self):
+#    super(RawBlob, self).view()
+    mime, encoding = self.get_mimetype_and_encoding()
+    headers = {'Content-Type': mime}
+    if encoding:
+        headers['Content-Encoding'] = encoding
         body = self['blob'].chunked
-        if len(body) == 1 and not body[0]:
-            body = []
-        self.direct_response('200 yo', headers, body)
+    if len(body) == 1 and not body[0]:
+        body = []
+    self.direct_response('200 yo', headers, body)
 
 
-    def get_mimetype_and_encoding(self):
-        if guess_is_binary(self['blob'].chunked):
-            mime, encoding = mimetypes.guess_type(self['filename'])
-            if mime is None:
-                mime = 'appliication/octet-stream'
-            return mime, encoding
-        else:
-            return 'text/plain', 'utf-8'
+def get_mimetype_and_encoding(blob, filename):
+    if guess_is_binary(blob.chunked):
+        mime, encoding = mimetypes.guess_type(filename)
+        if mime is None:
+            mime = 'appliication/octet-stream'
+        return mime, encoding
+    else:
+        return 'text/plain', 'utf-8'
 
 
-@route('/:repo:/commit/:commit_id:/', 'view_commit')
+#@route('/:repo:/commit/:commit_id:/', 'view_commit')
 @app.route('/<path:repo>/commit/<string:commit_id>/')
-class CommitView(BaseRepoView):
-    def view(self):
-        pass
+#class CommitView(object):
+def view_commit():
+    return render_template('view_commit.html')
 
 
-@route('/static/(?P<path>.+)', 'static')
-class StaticFilesView(BaseView):
+#@route('/static/(?P<path>.+)', 'static')
+class StaticFilesView(object):
     def __init__(self, env, path):
         self['path'] = path
         super(StaticFilesView, self).__init__(env)
@@ -303,3 +335,6 @@ class StaticFilesView(BaseView):
             self.direct_response(open(relpath))
         else:
             raise HttpError(404, 'Not Found')
+
+if __name__ == '__main__':
+    app.run(debug=True)

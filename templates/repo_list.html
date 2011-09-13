@@ -10,7 +10,7 @@
 <ul class=repolist>
   {% for name, head in repos %}
     <li>
-      <a href="{{ build_url('history', repo=name, commit_id='master', path='') }}">
+      <a href="{{ url_for('view_history', repo=name, commit_id='master', path='', page=0) }}">
         <span class=name>{{ name }}</span>
       <span class=last-updated>
         last updated {{ head|timesince }} ago

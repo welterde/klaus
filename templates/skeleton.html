@@ -4,7 +4,7 @@
 <link rel=stylesheet href=/static/klaus.css>
 
 <header>
-  <a href=/>{{ environ.HTTP_HOST }}</a>
+  <a href=/>{{ request.environ.HTTP_HOST }}</a>
   <span class=breadcrumbs>{% block breadcrumbs %}{% endblock %}</span>
 </header>
 
@@ -13,6 +13,6 @@
 </div>
 
 <footer>
-powered by <a href="https://github.com/jonashaag/klaus">klaus</a>{{ KLAUS_VERSION }},
+powered by <a href="https://github.com/welterde/klaus">klaus</a>{{ KLAUS_VERSION }},
 a simple Git viewer by Jonas Haag
 </footer>

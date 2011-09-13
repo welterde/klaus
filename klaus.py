@@ -29,8 +29,7 @@ try:
 except IOError:
     KLAUS_VERSION = ''
 
-app = Flask(__name__, template_folder=TEMPLATE_DIR)
-app.debug = True
+app = application = Flask(__name__, template_folder=TEMPLATE_DIR)
 app.jinja_env.globals['KLAUS_VERSION'] = KLAUS_VERSION
 
 if os.path.isfile(os.path.join(os.environ.get('KLAUS_BASE_PATH', ''), 'projects.list')):

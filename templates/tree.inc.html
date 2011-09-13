@@ -5,7 +5,7 @@
     <li><a href="{{ url_for('view_history', page=0, path=fullpath) }}" class=dir>{{ name|u }}</a></li>
     {% endfor %}
     {% for _, name, fullpath in tree.files %}
-    <li><a href="{{ url_for('view_blob', page=0, path=fullpath) }}">{{ name|u }}</a></li>
+    <li><a href="{{ url_for('view_blob', path=fullpath) }}">{{ name|u }}</a></li>
     {% endfor %}
   </ul>
 </div>

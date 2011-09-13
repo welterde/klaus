@@ -17,7 +17,8 @@ from pygments.lexers import get_lexer_for_filename, get_lexer_by_name, \
                             guess_lexer, ClassNotFound
 from pygments.formatters import HtmlFormatter
 
-from nano import NanoApplication, HttpError
+from flask import Flask, request, session, g, redirect, url_for, abort, render_template, flash
+
 from repo import Repo
 
 
@@ -33,14 +34,13 @@ except IOError:
 def query_string_to_dict(query_string):
     return {k: v[0] for k, v in urlparse.parse_qs(query_string).iteritems()}
 
-class KlausApplication(NanoApplication):
+class KlausApplication(object):
     def __init__(self, *args, **kwargs):
-        super(KlausApplication, self).__init__(*args, **kwargs)
+#        super(KlausApplication, self).__init__(*args, **kwargs)
         self.jinja_env = Environment(loader=FileSystemLoader(TEMPLATE_DIR),
                                      extensions=['jinja2.ext.autoescape'],
                                      autoescape=True)
-        self.jinja_env.globals['build_url'] = self.build_url
-        self.jinja_env.globals['KLAUS_VERSION'] = KLAUS_VERSION
+        
 
     def route(self, pattern):
         super_decorator = super(KlausApplication, self).route(pattern)
@@ -62,7 +62,10 @@ class KlausApplication(NanoApplication):
     def render_template(self, template_name, **kwargs):
         return self.jinja_env.get_template(template_name).render(**kwargs)
 
-app = application = KlausApplication(debug=True, default_content_type='text/html')
+app = Flask(__name__, template_folder=TEMPLATE_DIR)
+app.jinja_env.globals['KLAUS_VERSION'] = KLAUS_VERSION
+
+#app = application = KlausApplication(debug=True, default_content_type='text/html')
 app.repos = {repo.rstrip(os.sep).split(os.sep)[-1]: repo for repo in
              sys.argv[1:] or os.environ.get('KLAUS_REPOS', '').split()}
 
@@ -195,10 +198,9 @@ def route(pattern, name=None):
         return cls
     return decorator
 
-@route('/', 'repo_list')
-class RepoList(BaseView):
-    def view(self):
-        self['repos'] = repos = []
+@app.route('/')
+def repo_list():
+        repos = []
         for name in app.repos.iterkeys():
             repo = get_repo(name)
             refs = [repo[ref] for ref in repo.get_refs()]
@@ -209,6 +211,7 @@ class RepoList(BaseView):
             repos.sort(key=lambda x: x[1], reverse=True)
         else:
             repos.sort(key=lambda x: x[0])
+        return render_template("repo_list.html", repos=repos)
 
 class BaseRepoView(BaseView):
     def __init__(self, env, repo, commit_id, path=None):
@@ -269,6 +272,7 @@ class TreeViewMixin(object):
         return tree, root
 
 @route('/:repo:/tree/:commit_id:/(?P<path>.*)', 'history')
+@app.route('/<path:repo>/tree/<string:commit_id>/<path:path>')
 class TreeView(TreeViewMixin, BaseRepoView):
     def view(self):
         super(TreeView, self).view()

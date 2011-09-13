@@ -3,7 +3,6 @@ import os
 import re
 import stat
 import time
-import urlparse
 import mimetypes
 from future_builtins import map
 from functools import wraps
@@ -30,44 +29,10 @@ try:
 except IOError:
     KLAUS_VERSION = ''
 
-
-def query_string_to_dict(query_string):
-    return {k: v[0] for k, v in urlparse.parse_qs(query_string).iteritems()}
-
-class KlausApplication(object):
-    def __init__(self, *args, **kwargs):
-#        super(KlausApplication, self).__init__(*args, **kwargs)
-        self.jinja_env = Environment(loader=FileSystemLoader(TEMPLATE_DIR),
-                                     extensions=['jinja2.ext.autoescape'],
-                                     autoescape=True)
-        
-
-    def route(self, pattern):
-        super_decorator = super(KlausApplication, self).route(pattern)
-        def decorator(callback):
-            @wraps(callback)
-            def wrapper(env, **kwargs):
-                if hasattr(self, 'custom_host'):
-                    env['HTTP_HOST'] = self.custom_host
-                try:
-                    return self.render_template(callback.__name__ + '.html',
-                                                **callback(env, **kwargs))
-                except Response as e:
-                    if len(e.args) == 1:
-                        return e.args[0]
-                    return e.args
-            return super_decorator(wrapper)
-        return decorator
-
-    def render_template(self, template_name, **kwargs):
-        return self.jinja_env.get_template(template_name).render(**kwargs)
-
 app = Flask(__name__, template_folder=TEMPLATE_DIR)
 app.jinja_env.globals['KLAUS_VERSION'] = KLAUS_VERSION
 
-#app = application = KlausApplication(debug=True, default_content_type='text/html')
-app.repos = {repo.rstrip(os.sep).split(os.sep)[-1]: repo for repo in
-             sys.argv[1:] or os.environ.get('KLAUS_REPOS', '').split()}
+app.repos = {repo.rstrip(os.sep).split(os.sep)[-1]: repo for repo in sys.argv[1:] or os.environ.get('KLAUS_REPOS', '').split()}
 
 def pygmentize(code, filename=None, language=None):
     if language:
@@ -176,72 +141,54 @@ def get_repo(name):
     try:
         return Repo(name, app.repos[name])
     except KeyError:
-        raise HttpError(404, 'No repository named "%s"' % name)
-
-class Response(Exception):
-    pass
-
-class BaseView(dict):
-    def __init__(self, env):
-        dict.__init__(self)
-        self['environ'] = env
-        self.GET = query_string_to_dict(env.get('QUERY_STRING', ''))
-        self.view()
-
-    def direct_response(self, *args):
-        raise Response(*args)
-
-def route(pattern, name=None):
-    def decorator(cls):
-        cls.__name__ = name or cls.__name__.lower()
-        app.route(pattern)(cls)
-        return cls
-    return decorator
+        # for now just abort..
+        # raise HttpError(404, 'No repository named "%s"' % name)
+        abort(404)
 
 @app.route('/')
-def repo_list():
-        repos = []
-        for name in app.repos.iterkeys():
-            repo = get_repo(name)
-            refs = [repo[ref] for ref in repo.get_refs()]
-            refs.sort(key=lambda obj:getattr(obj, 'commit_time', None),
-                      reverse=True)
-            repos.append((name, refs[0].commit_time))
+def view_repo_list():
+    repos = []
+    for name in app.repos.iterkeys():
+        repo = get_repo(name)
+        refs = [repo[ref] for ref in repo.get_refs()]
+        refs.sort(key=lambda obj:getattr(obj, 'commit_time', None), reverse=True)
+        repos.append((name, refs[0].commit_time))
         if 'by-last-update' in self.GET:
             repos.sort(key=lambda x: x[1], reverse=True)
         else:
             repos.sort(key=lambda x: x[0])
         return render_template("repo_list.html", repos=repos)
 
-class BaseRepoView(BaseView):
-    def __init__(self, env, repo, commit_id, path=None):
-        self['repo'] = repo = get_repo(repo)
-        self['commit_id'] = commit_id
-        self['commit'], isbranch = self.get_commit(repo, commit_id)
-        self['branch'] = commit_id if isbranch else 'master'
-        self['path'] = path
-        if path:
-            self['subpaths'] = list(subpaths(path))
-        self['build_url'] = self.build_url
-        super(BaseRepoView, self).__init__(env)
+#class BaseRepoView(BaseView):
+#    def __init__(self, env, repo, commit_id, path=None):
+#        self['repo'] = repo = get_repo(repo)
+#        self['commit_id'] = commit_id
+#        self['commit'], isbranch = self.get_commit(repo, commit_id)
+#        self['branch'] = commit_id if isbranch else 'master'
+#        self['path'] = path
+#        if path:
+#            self['subpaths'] = list(subpaths(path))
+#        self['build_url'] = self.build_url
+#        super(BaseRepoView, self).__init__(env)
 
-    def get_commit(self, repo, id):
-        try:
-            commit, isbranch = repo.get_branch_or_commit(id)
-            if not isinstance(commit, Commit):
-                raise KeyError
-        except KeyError:
-            raise HttpError(404, '"%s" has no commit "%s"' % (repo.name, id))
-        return commit, isbranch
+def get_commit(repo, id):
+    try:
+        commit, isbranch = repo.get_branch_or_commit(id)
+        if not isinstance(commit, Commit):
+            raise KeyError
+    except KeyError:
+        #raise HttpError(404, '"%s" has no commit "%s"' % (repo.name, id))
+        abort(404)
+    return commit, isbranch
 
-    def build_url(self, view=None, **kwargs):
-        if view is None:
-            view = self.__class__.__name__
-        default_kwargs = {
-            'repo': self['repo'].name,
-            'commit_id': self['commit_id']
-        }
-        return app.build_url(view, **dict(default_kwargs, **kwargs))
+#    def build_url(self, view=None, **kwargs):
+#        if view is None:
+#            view = self.__class__.__name__
+#        default_kwargs = {
+#            'repo': self['repo'].name,
+#            'commit_id': self['commit_id']
+#        }
+#        return app.build_url(view, **dict(default_kwargs, **kwargs))
 
 
 class TreeViewMixin(object):
@@ -273,26 +220,28 @@ class TreeViewMixin(object):
 
 @route('/:repo:/tree/:commit_id:/(?P<path>.*)', 'history')
 @app.route('/<path:repo>/tree/<string:commit_id>/<path:path>')
-class TreeView(TreeViewMixin, BaseRepoView):
-    def view(self):
-        super(TreeView, self).view()
-        try:
-            page = int(self.GET.get('page'))
-        except (TypeError, ValueError):
-            page = 0
-
-        self['page'] = page
-
-        if page:
-            self['history_length'] = 30
-            self['skip'] = (self['page']-1) * 30 + 10
-            if page > 7:
-                self['previous_pages'] = [0, 1, 2, None] + range(page)[-3:]
-            else:
-                self['previous_pages'] = xrange(page)
+@app.route('/<path:repo>/tree/<string:commit_id>/')
+def view_history(repo, commit_id, path=None):
+    repo=get_repo(repo)
+    commit,isbranch=get_commit(repo, commit_id)
+    branch=commit_id if isbranch else 'master'
+    super(TreeView, self).view()
+    try:
+        page = int(request.args.get('page'))
+    except (TypeError, ValueError):
+        page = 0
+    
+    if page:
+        history_length = 30
+        skip = (page-1) * 30 + 10
+        if page > 7:
+            previous_pages = [0, 1, 2, None] + range(page)[-3:]
         else:
-            self['history_length'] = 10
-            self['skip'] = 0
+            previous_pages = xrange(page)
+    else:
+        history_length = 10
+        skip = 0
+    return render_template('history.html', repo=repo, commit=commit, branch=branch, page=page, history_length=history_length, skip=skip)
 
 class BaseBlobView(BaseRepoView):
     def view(self):
@@ -300,6 +249,7 @@ class BaseBlobView(BaseRepoView):
         self['directory'], self['filename'] = os.path.split(self['path'].strip('/'))
 
 @route('/:repo:/blob/:commit_id:/(?P<path>.*)', 'view_blob')
+@app.route('/<path:repo>/blob/<string:commit_id>/<path:path>')
 class BlobView(BaseBlobView, TreeViewMixin):
     def view(self):
         BaseBlobView.view(self)
@@ -309,6 +259,7 @@ class BlobView(BaseBlobView, TreeViewMixin):
 
 
 @route('/:repo:/raw/:commit_id:/(?P<path>.*)', 'raw_blob')
+@app.route('/<path:repo>/raw/<string:commit_id>/<path:path>')
 class RawBlob(BaseBlobView):
     def view(self):
         super(RawBlob, self).view()
@@ -333,6 +284,7 @@ class RawBlob(BaseBlobView):
 
 
 @route('/:repo:/commit/:commit_id:/', 'view_commit')
+@app.route('/<path:repo>/commit/<string:commit_id>/')
 class CommitView(BaseRepoView):
     def view(self):
         pass

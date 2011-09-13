@@ -27,6 +27,7 @@ app.jinja_env.filters['is_binary'] = guess_is_binary
 app.jinja_env.filters['is_image'] = guess_is_image
 app.jinja_env.filters['shorten_author'] = extract_author_name
 app.jinja_env.globals['KLAUS_VERSION'] = KLAUS_VERSION
+app.debug = bool(os.environ.get('KLAUS_DEBUG', 'False'))
 
 if os.path.isfile(os.path.join(os.environ.get('KLAUS_BASE_PATH', ''), 'projects.list')):
     app.repos={}
@@ -93,7 +94,8 @@ def view_repo_list():
         repo = get_repo(name)
         refs = [repo[ref] for ref in repo.get_refs()]
         refs.sort(key=lambda obj:getattr(obj, 'commit_time', None), reverse=True)
-        repos.append((name, refs[0].commit_time))
+        if len(refs) > 0:
+            repos.append((name, refs[0].commit_time))
     if 'by-last-update' in request.args:
         repos.sort(key=lambda x: x[1], reverse=True)
     else:

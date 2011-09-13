@@ -18,6 +18,14 @@ except IOError:
     KLAUS_VERSION = ''
 
 app = application = Flask(__name__, template_folder=TEMPLATE_DIR)
+app.jinja_env.filters['u'] = force_unicode
+app.jinja_env.filters['timesince'] = timesince
+app.jinja_env.filters['shorten_id'] = lambda id: id[:7] if len(id) in {20, 40} else id
+app.jinja_env.filters['shorten_message'] = lambda msg: msg.split('\n')[0]
+app.jinja_env.filters['pygmentize'] = pygmentize
+app.jinja_env.filters['is_binary'] = guess_is_binary
+app.jinja_env.filters['is_image'] = guess_is_image
+app.jinja_env.filters['shorten_author'] = extract_author_name
 app.jinja_env.globals['KLAUS_VERSION'] = KLAUS_VERSION
 
 if os.path.isfile(os.path.join(os.environ.get('KLAUS_BASE_PATH', ''), 'projects.list')):
@@ -73,15 +81,6 @@ def add_commit_id(endpoint, values):
         return
     if app.url_map.is_endpoint_expecting(endpoint, 'commit_id'):
         values['commit_id'] = g.commit_id
-
-app.jinja_env.filters['u'] = force_unicode
-app.jinja_env.filters['timesince'] = timesince
-app.jinja_env.filters['shorten_id'] = lambda id: id[:7] if len(id) in {20, 40} else id
-app.jinja_env.filters['shorten_message'] = lambda msg: msg.split('\n')[0]
-app.jinja_env.filters['pygmentize'] = pygmentize
-app.jinja_env.filters['is_binary'] = guess_is_binary
-app.jinja_env.filters['is_image'] = guess_is_image
-app.jinja_env.filters['shorten_author'] = extract_author_name
 
 @app.errorhandler(404)
 def view_page_not_found(error):

@@ -33,7 +33,14 @@ app = Flask(__name__, template_folder=TEMPLATE_DIR)
 app.debug = True
 app.jinja_env.globals['KLAUS_VERSION'] = KLAUS_VERSION
 
-app.repos = {repo.rstrip(os.sep): (os.environ.get('KLAUS_BASE_PATH', '') + repo) for repo in os.environ.get('KLAUS_REPOS', '').split()}
+if os.path.isfile(os.path.join(os.environ.get('KLAUS_BASE_PATH', ''), 'projects.list')):
+    app.repos={}
+    f=open(os.path.join(os.environ.get('KLAUS_BASE_PATH', ''), 'projects.list'), 'r')
+    for line in f.readlines():
+        app.repos[line.strip().rstrip(os.sep)] = os.environ.get('KLAUS_BASE_PATH', '') + line.strip()
+    f.close()
+else:
+    app.repos = {repo.rstrip(os.sep): (os.environ.get('KLAUS_BASE_PATH', '') + repo) for repo in os.environ.get('KLAUS_REPOS', '').split()}
 
 # now load some stuff..
 @app.url_value_preprocessor

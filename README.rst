@@ -21,12 +21,12 @@ Requirements
 * Jinja2_
 * Pygments_
 * dulwich_ (>= 0.7.1)
-* Nano_ (shipped as submodule, do a ``git submodule update --init`` to fetch)
+* flask
 
 .. _Jinja2: http://jinja.pocoo.org/
 .. _Pygments: http://pygments.org/
 .. _dulwich: http://www.samba.org/~jelmer/dulwich/
-.. _Nano: https://github.com/jonashaag/nano
+.. _flask: http://flask.pocoo.org/
 
 
 Installation
@@ -39,10 +39,9 @@ Installation
    pip install jinja2
    pip install pygments
    pip install dulwich
+   pip install flask
 
-   git clone https://github.com/jonashaag/klaus
-   cd klaus
-   git submodule update --init
+   git clone https://github.com/welterde/klaus
 
 
 Usage

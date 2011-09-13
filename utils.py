@@ -11,7 +11,7 @@ from pygments import highlight
 from pygments.lexers import get_lexer_for_filename, get_lexer_by_name, \
                             guess_lexer, ClassNotFound
 from pygments.formatters import HtmlFormatter
-from flask import g
+from flask import g, abort
 
 
 

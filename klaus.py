@@ -74,6 +74,8 @@ def add_commit_id(endpoint, values):
         values['commit_id'] = g.commit_id
 
 
+
+
 def pygmentize(code, filename=None, language=None):
     if language:
         lexer = get_lexer_by_name(language)
@@ -181,9 +183,12 @@ def get_repo(name):
     try:
         return Repo(name, app.repos[name])
     except KeyError:
-        # for now just abort..
-        # raise HttpError(404, 'No repository named "%s"' % name)
+        g.err_msg='No repository named "%s"' % name
         abort(404)
+
+@app.errorhandler(404)
+def view_page_not_found(error):
+    return render_template('page_not_found.html'), 404
 
 @app.route('/')
 def view_repo_list():
@@ -199,17 +204,6 @@ def view_repo_list():
         repos.sort(key=lambda x: x[0])
     return render_template("repo_list.html", repos=repos)
 
-#class BaseRepoView(BaseView):
-#    def __init__(self, env, repo, commit_id, path=None):
-#        self['repo'] = repo = get_repo(repo)
-#        self['commit_id'] = commit_id
-#        self['commit'], isbranch = self.get_commit(repo, commit_id)
-#        self['branch'] = commit_id if isbranch else 'master'
-#        self['path'] = path
-#        if path:
-#            self['subpaths'] = list(subpaths(path))
-#        self['build_url'] = self.build_url
-#        super(BaseRepoView, self).__init__(env)
 
 def get_commit(repo, id):
     try:
@@ -217,18 +211,10 @@ def get_commit(repo, id):
         if not isinstance(commit, Commit):
             raise KeyError
     except KeyError:
-        #raise HttpError(404, '"%s" has no commit "%s"' % (repo.name, id))
+        g.err_msg = '"%s" has no commit "%s"' % (repo.name, id)
         abort(404)
     return commit, isbranch
 
-#    def build_url(self, view=None, **kwargs):
-#        if view is None:
-#            view = self.__class__.__name__
-#        default_kwargs = {
-#            'repo': self['repo'].name,
-#            'commit_id': self['commit_id']
-#        }
-#        return app.build_url(view, **dict(default_kwargs, **kwargs))
 
 def listdir(repo, commit, path):
     dirs, files = [], []
@@ -253,7 +239,6 @@ def get_tree(repo, commit, path):
         tree = repo.get_tree(commit, root)
     return tree, root
 
-#@route('/:repo:/tree/:commit_id:/(?P<path>.*)', 'history')
 @app.route('/<path:repo>/tree/<string:commit_id>/')
 @app.route('/<path:repo>/tree/<string:commit_id>/<int:page>/')
 @app.route('/<path:repo>/tree/<string:commit_id>/<int:page>/<path:path>')
@@ -275,12 +260,6 @@ def view_history(page=0, path=None):
 def get_blob(repo, commit, path):
     return repo.get_tree(commit, path)
 
-#class BaseBlobView(BaseRepoView):
-#    def view(self):
-#        self['blob'] = self['repo'].get_tree(self['commit'], self['path'])
-#        self['directory'], self['filename'] = os.path.split(self['path'].strip('/'))
-
-#@route('/:repo:/blob/:commit_id:/(?P<path>.*)', 'view_blob')
 @app.route('/<path:repo>/blob/<string:commit_id>/<path:path>')
 def view_blob(path):
     tree=listdir(g.repo, g.commit, g.path)
@@ -290,11 +269,8 @@ def view_blob(path):
     return render_template('view_blob.html', blob=blob, raw_url=raw_url, too_large=too_large, tree=tree)
 
 
-#@route('/:repo:/raw/:commit_id:/(?P<path>.*)', 'raw_blob')
 @app.route('/<path:repo>/raw/<string:commit_id>/<path:path>')
-#class RawBlob(object):
 def view_raw_blob(self):
-#    super(RawBlob, self).view()
     mime, encoding = self.get_mimetype_and_encoding()
     headers = {'Content-Type': mime}
     if encoding:
@@ -315,26 +291,9 @@ def get_mimetype_and_encoding(blob, filename):
         return 'text/plain', 'utf-8'
 
 
-#@route('/:repo:/commit/:commit_id:/', 'view_commit')
 @app.route('/<path:repo>/commit/<string:commit_id>/')
-#class CommitView(object):
 def view_commit():
     return render_template('view_commit.html')
-
-
-#@route('/static/(?P<path>.+)', 'static')
-class StaticFilesView(object):
-    def __init__(self, env, path):
-        self['path'] = path
-        super(StaticFilesView, self).__init__(env)
-
-    def view(self):
-        path = './static/' + self['path']
-        relpath = os.path.join(KLAUS_ROOT, path)
-        if os.path.isfile(relpath):
-            self.direct_response(open(relpath))
-        else:
-            raise HttpError(404, 'Not Found')
 
 if __name__ == '__main__':
     app.run(debug=True)

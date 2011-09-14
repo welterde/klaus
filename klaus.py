@@ -103,10 +103,14 @@ def view_repo_list():
     return render_template("repo_list.html", repos=repos)
 
 @app.route('/<path:repo>/tree/<string:commit_id>/')
-@app.route('/<path:repo>/tree/<string:commit_id>/<int:page>/')
-@app.route('/<path:repo>/tree/<string:commit_id>/<int:page>/<path:path>')
-def view_history(page=0, path=None):
+@app.route('/<path:repo>/tree/<string:commit_id>/<path:path>')
+def view_history(path=None):
     tree=listdir(g.repo, g.commit, g.path)
+    
+    try:
+        page = int(request.args.get('page'))
+    except (TypeError, ValueError):
+        page = 0
     
     if page:
         history_length = 30
@@ -118,7 +122,8 @@ def view_history(page=0, path=None):
     else:
         history_length = 10
         skip = 0
-    return render_template('history.html', repo=g.repo, commit=g.commit, commit_id=g.commit_id, branch=g.branch, page=page, history_length=history_length, skip=skip, tree=tree)
+        previous_pages=None
+    return render_template('history.html', page=page, history_length=history_length, skip=skip, tree=tree, previous_pages=previous_pages)
 
 @app.route('/<path:repo>/blob/<string:commit_id>/<path:path>')
 def view_blob(path):

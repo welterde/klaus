@@ -13,12 +13,12 @@
         {% if n is none %}
           <span class=n>...</span>
         {% else %}
-          <a href="?page={{n}}" class=n>{{ n }}</a>
+          <a href="{{ url_for('view_history', page=n) }}" class=n>{{ n }}</a>
         {% endif %}
       {% endfor %}
     {% endif %}
     {% if has_more_commits %}
-      <a href="?page={{page+1}}">»»</a>
+      <a href="{{ url_for('view_history', page=(page+1)) }}">»»</a>
     {% else %}
       <span>»»</span>
     {% endif%}

@@ -7,7 +7,7 @@
   <h2>
     {{ g.filename|u }}
     <span>
-      @<a href="{{ url_for('view_commit') }}">{{ g.commit_id|shorten_id }}</a>
+      @<a href="{{ url_for('view_commit') }}">{{ g.commit_id|shorten_sha1 }}</a>
       (<a href="{{ raw_url }}">raw</a>
       &middot; <a href="{{ url_for('view_history', page=0, path=path) }}">history</a>)
     </span>

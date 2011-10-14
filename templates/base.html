@@ -4,7 +4,7 @@
   <span>
     <a href="{{ url_for('view_history', commit_id='master') }}">{{ g.repo.name }}</a>
     <span class=slash>/</span>
-    <a href="{{ url_for('view_history') }}">{{ g.commit_id }}</a>
+    <a href="{{ url_for('view_history') }}">{{ g.commit_id|shorten_sha1 }}</a>
   </span>
 
   {% if g.subpaths %}
@@ -23,7 +23,7 @@
 
 {% block extra_header %}
 <div class=branch-selector>
-  <span>{{ commit_id }}</span>
+  <span>{{ commit_id|shorten_sha1 }}</span>
   <ul>
     {% for branch in g.branches %}
     <li><a href="{{ url_for('view_history', commit_id=branch, path=path) }}">{{ branch }}</a></li>

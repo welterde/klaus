@@ -5,7 +5,7 @@ from jinja2 import Environment, FileSystemLoader
 from flask import Flask, request, session, g, redirect, url_for, abort, render_template, flash
 
 from repo import Repo
-from utils import timesince, pygmentize, force_unicode, guess_is_binary, guess_is_image, extract_author_name, subpaths, get_commit, listdir, get_blob
+from utils import timesince, pygmentize, force_unicode, guess_is_binary, guess_is_image, extract_author_name, subpaths, get_commit, listdir, get_blob, shorten_sha1
 
 
 
@@ -16,11 +16,6 @@ try:
     KLAUS_VERSION = ' ' + open(os.path.join(KLAUS_ROOT, '.git/refs/heads/master')).read()[:7]
 except IOError:
     KLAUS_VERSION = ''
-
-def shorten_sha1(sha1):
-    if re.match('[a-z\d]{20,40}', sha1):
-        sha1 = sha1[:10]
-    return sha1
 
 app = application = Flask(__name__, template_folder=TEMPLATE_DIR)
 app.jinja_env.filters['u'] = force_unicode

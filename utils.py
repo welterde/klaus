@@ -144,3 +144,8 @@ def get_tree(repo, commit, path):
 
 def get_blob(repo, commit, path):
     return repo.get_tree(commit, path)
+
+def shorten_sha1(sha1):
+    if re.match('[a-z\d]{20,40}', sha1):
+        sha1 = sha1[:10]
+    return sha1

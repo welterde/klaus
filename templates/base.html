@@ -2,7 +2,7 @@
 
 {% block breadcrumbs %}
   <span>
-    <a href="{{ url_for('view_history', commit_id=g.branch) }}">{{ g.repo.name }}</a>
+    <a href="{{ url_for('view_history', commit_id='master') }}">{{ g.repo.name }}</a>
     <span class=slash>/</span>
     <a href="{{ url_for('view_history') }}">{{ g.commit_id }}</a>
   </span>
@@ -19,5 +19,16 @@
     {% endfor %}
   </span>
   {% endif %}
+{% endblock %}
+
+{% block extra_header %}
+<div class=branch-selector>
+  <span>{{ commit_id }}</span>
+  <ul>
+    {% for branch in branches %}
+    <li><a href="{{ url_for('view_history', commit_id=branch, path=path) }}">{{ branch }}</a></li>
+    {% endfor %}
+  </ul>
+</div>
 {% endblock %}
 

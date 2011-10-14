@@ -56,7 +56,7 @@ def pull_stuff(endpoint, values):
         g.repo = get_repo(g.repo)
         g.commit_id = values.pop('commit_id', None)
         g.commit, isbranch = get_commit(g.repo, g.commit_id)
-        # TODO: find correct branch here..
+        g.branches = g.repo.get_branch_names(exclude=[g.commit_id])
         if isbranch:
             g.branch=g.commit_id
         else:
